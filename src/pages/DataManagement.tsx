@@ -1,4 +1,5 @@
 import { DashboardLayout } from "@/components/DashboardLayout";
+import { PageTransition } from "@/components/PageTransition";
 import { Exchange, mockDataSources, DataSource } from "@/lib/mock-data";
 import { motion } from "framer-motion";
 import { Database, HardDrive, Wifi, AlertTriangle, RefreshCw, CheckCircle } from "lucide-react";
@@ -98,6 +99,7 @@ function Content({ exchangeFilter: _ }: { exchangeFilter: Exchange | 'all' }) {
   const errors = mockDataSources.filter(d => d.status === 'ERROR').length;
 
   return (
+    <PageTransition>
     <div className="space-y-4">
       <h1 className="text-lg font-bold text-foreground">Data Management</h1>
 
@@ -124,6 +126,7 @@ function Content({ exchangeFilter: _ }: { exchangeFilter: Exchange | 'all' }) {
         ))}
       </div>
     </div>
+    </PageTransition>
   );
 }
 
