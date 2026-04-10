@@ -1,6 +1,8 @@
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { ExchangeSelector } from "@/components/trading/ExchangeSelector";
+import { CommandPalette } from "@/components/CommandPalette";
+import { NotificationCenter } from "@/components/trading/NotificationCenter";
 import { Exchange } from "@/lib/mock-data";
 import { useState } from "react";
 import { Wifi } from "lucide-react";
@@ -21,18 +23,22 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             <div className="flex items-center gap-3">
               <SidebarTrigger />
               <ExchangeSelector selected={exchangeFilter} onChange={setExchangeFilter} />
+              <div className="hidden md:block">
+                <CommandPalette />
+              </div>
             </div>
             <div className="flex items-center gap-3">
-              <div className="flex items-center gap-1.5 text-xs">
+              <NotificationCenter />
+              <div className="hidden sm:flex items-center gap-1.5 text-xs">
                 <Wifi className="h-3 w-3 text-profit" />
                 <span className="text-muted-foreground">Connected</span>
               </div>
-              <div className="text-xs font-mono text-muted-foreground">
+              <div className="text-xs font-mono text-muted-foreground hidden sm:block">
                 {new Date().toLocaleTimeString()}
               </div>
             </div>
           </header>
-          <main className="flex-1 p-4 overflow-auto">
+          <main className="flex-1 p-3 sm:p-4 overflow-auto">
             {children({ exchangeFilter })}
           </main>
         </div>
