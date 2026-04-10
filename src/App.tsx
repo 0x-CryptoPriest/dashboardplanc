@@ -9,6 +9,10 @@ import Orders from "./pages/Orders";
 import Strategies from "./pages/Strategies";
 import Performance from "./pages/Performance";
 import Risk from "./pages/Risk";
+import Backtest from "./pages/Backtest";
+import DagsterJobs from "./pages/DagsterJobs";
+import DataManagement from "./pages/DataManagement";
+import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -24,8 +28,12 @@ const App = () => (
           <Route path="/positions" element={<Positions />} />
           <Route path="/orders" element={<Orders />} />
           <Route path="/strategies" element={<Strategies />} />
+          <Route path="/backtest" element={<Backtest />} />
           <Route path="/performance" element={<Performance />} />
           <Route path="/risk" element={<Risk />} />
+          <Route path="/data" element={<DataManagement />} />
+          <Route path="/jobs" element={<DagsterJobs />} />
+          <Route path="/settings" element={<Settings />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

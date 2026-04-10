@@ -7,6 +7,8 @@ import {
   ShieldCheck,
   Settings,
   Zap,
+  FlaskConical,
+  Database,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
@@ -27,11 +29,13 @@ const mainItems = [
   { title: "Positions", url: "/positions", icon: Layers },
   { title: "Orders", url: "/orders", icon: ClipboardList },
   { title: "Strategies", url: "/strategies", icon: Brain },
+  { title: "Backtest", url: "/backtest", icon: FlaskConical },
   { title: "Performance", url: "/performance", icon: LineChart },
   { title: "Risk", url: "/risk", icon: ShieldCheck },
 ];
 
 const systemItems = [
+  { title: "Data", url: "/data", icon: Database },
   { title: "Dagster Jobs", url: "/jobs", icon: Zap },
   { title: "Settings", url: "/settings", icon: Settings },
 ];
