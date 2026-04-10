@@ -1,4 +1,5 @@
 import { DashboardLayout } from "@/components/DashboardLayout";
+import { PageTransition } from "@/components/PageTransition";
 import { Exchange } from "@/lib/mock-data";
 import { motion } from "framer-motion";
 import { Key, Shield, Wifi, Bell, CheckCircle, XCircle, Eye, EyeOff } from "lucide-react";
@@ -72,6 +73,7 @@ function ConnectionCheck({ name, endpoint, latency, status, delay }: { name: str
 
 function Content({ exchangeFilter: _ }: { exchangeFilter: Exchange | 'all' }) {
   return (
+    <PageTransition>
     <div className="space-y-4">
       <h1 className="text-lg font-bold text-foreground">Settings</h1>
 
@@ -164,6 +166,7 @@ function Content({ exchangeFilter: _ }: { exchangeFilter: Exchange | 'all' }) {
         </TabsContent>
       </Tabs>
     </div>
+    </PageTransition>
   );
 }
 

@@ -1,6 +1,7 @@
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { RiskPanel } from "@/components/trading/RiskPanel";
 import { DrawdownChart } from "@/components/trading/DrawdownChart";
+import { PageTransition } from "@/components/PageTransition";
 import { Exchange, mockCorrelations, mockEfficientFrontier } from "@/lib/mock-data";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, ZAxis } from "recharts";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -108,6 +109,7 @@ function EfficientFrontierChart() {
 
 function Content({ exchangeFilter: _ }: { exchangeFilter: Exchange | 'all' }) {
   return (
+    <PageTransition>
     <div className="space-y-4">
       <h1 className="text-lg font-bold text-foreground">Risk Analysis</h1>
 
@@ -208,6 +210,7 @@ function Content({ exchangeFilter: _ }: { exchangeFilter: Exchange | 'all' }) {
         </TabsContent>
       </Tabs>
     </div>
+    </PageTransition>
   );
 }
 
