@@ -1,4 +1,5 @@
 import { DashboardLayout } from "@/components/DashboardLayout";
+import { PageTransition } from "@/components/PageTransition";
 import { Exchange, mockDagsterJobs, mockDagsterRuns, DagsterJob, DagsterRun } from "@/lib/mock-data";
 import { useState } from "react";
 import { motion } from "framer-motion";
@@ -105,6 +106,7 @@ function Content({ exchangeFilter: _ }: { exchangeFilter: Exchange | 'all' }) {
   const [expandedJob, setExpandedJob] = useState<string | null>(null);
 
   return (
+    <PageTransition>
     <div className="space-y-4">
       <h1 className="text-lg font-bold text-foreground">Dagster Jobs</h1>
 
@@ -188,6 +190,7 @@ function Content({ exchangeFilter: _ }: { exchangeFilter: Exchange | 'all' }) {
         </TabsContent>
       </Tabs>
     </div>
+    </PageTransition>
   );
 }
 

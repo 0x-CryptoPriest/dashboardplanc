@@ -1,4 +1,5 @@
 import { DashboardLayout } from "@/components/DashboardLayout";
+import { PageTransition } from "@/components/PageTransition";
 import { Exchange, mockBacktestConfigs, mockBacktestResults, BacktestConfig } from "@/lib/mock-data";
 import { useState } from "react";
 import { motion } from "framer-motion";
@@ -102,6 +103,7 @@ function Content({ exchangeFilter }: { exchangeFilter: Exchange | 'all' }) {
   const result = mockBacktestResults[selectedId];
 
   return (
+    <PageTransition>
     <div className="space-y-4">
       <h1 className="text-lg font-bold text-foreground">Backtesting</h1>
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
@@ -211,6 +213,7 @@ function Content({ exchangeFilter }: { exchangeFilter: Exchange | 'all' }) {
         </div>
       </div>
     </div>
+    </PageTransition>
   );
 }
 
