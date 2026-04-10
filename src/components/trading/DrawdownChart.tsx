@@ -8,18 +8,18 @@ export function DrawdownChart() {
         <AreaChart data={drawdownData} margin={{ top: 5, right: 5, bottom: 5, left: 5 }}>
           <defs>
             <linearGradient id="ddGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="hsl(0, 72%, 55%)" stopOpacity={0} />
-              <stop offset="100%" stopColor="hsl(0, 72%, 55%)" stopOpacity={0.3} />
+              <stop offset="0%" stopColor="hsl(var(--loss))" stopOpacity={0} />
+              <stop offset="100%" stopColor="hsl(var(--loss))" stopOpacity={0.3} />
             </linearGradient>
           </defs>
           <XAxis
             dataKey="date"
-            tick={{ fontSize: 10, fill: 'hsl(215, 15%, 50%)' }}
+            tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
             axisLine={false}
             tickLine={false}
           />
           <YAxis
-            tick={{ fontSize: 10, fill: 'hsl(215, 15%, 50%)' }}
+            tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
             axisLine={false}
             tickLine={false}
             tickFormatter={(v) => `${v}%`}
@@ -27,8 +27,8 @@ export function DrawdownChart() {
           />
           <Tooltip
             contentStyle={{
-              background: 'hsl(220, 25%, 8%)',
-              border: '1px solid hsl(220, 20%, 14%)',
+              background: 'hsl(var(--card))',
+              border: '1px solid hsl(var(--border))',
               borderRadius: '8px',
               fontSize: '12px',
               fontFamily: 'JetBrains Mono',
@@ -38,7 +38,7 @@ export function DrawdownChart() {
           <Area
             type="monotone"
             dataKey="drawdown"
-            stroke="hsl(0, 72%, 55%)"
+            stroke="hsl(var(--loss))"
             strokeWidth={2}
             fill="url(#ddGrad)"
           />

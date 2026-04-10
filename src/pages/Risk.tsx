@@ -7,10 +7,10 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, ScatterChart, Scatte
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const allocationData = [
-  { name: 'BTC', value: 45, color: 'hsl(38, 92%, 55%)' },
-  { name: 'ETH', value: 25, color: 'hsl(190, 95%, 50%)' },
-  { name: 'SOL', value: 15, color: 'hsl(280, 70%, 60%)' },
-  { name: 'Others', value: 15, color: 'hsl(215, 15%, 50%)' },
+  { name: 'BTC', value: 45, color: 'hsl(var(--warning))' },
+  { name: 'ETH', value: 25, color: 'hsl(var(--primary))' },
+  { name: 'SOL', value: 15, color: 'hsl(var(--chart-4))' },
+  { name: 'Others', value: 15, color: 'hsl(var(--muted-foreground))' },
 ];
 
 const optimizedAllocation = [
@@ -89,16 +89,16 @@ function EfficientFrontierChart() {
     <div className="h-[300px]">
       <ResponsiveContainer width="100%" height="100%">
         <ScatterChart>
-          <CartesianGrid strokeDasharray="3 3" stroke="hsl(220, 20%, 14%)" />
-          <XAxis type="number" dataKey="risk" name="Risk (%)" tick={{ fill: 'hsl(215, 15%, 50%)', fontSize: 10 }} label={{ value: 'Risk (Volatility %)', position: 'bottom', fill: 'hsl(215, 15%, 50%)', fontSize: 11 }} />
-          <YAxis type="number" dataKey="return" name="Return (%)" tick={{ fill: 'hsl(215, 15%, 50%)', fontSize: 10 }} label={{ value: 'Return %', angle: -90, position: 'insideLeft', fill: 'hsl(215, 15%, 50%)', fontSize: 11 }} />
+          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+          <XAxis type="number" dataKey="risk" name="Risk (%)" tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }} label={{ value: 'Risk (Volatility %)', position: 'bottom', fill: 'hsl(var(--muted-foreground))', fontSize: 11 }} />
+          <YAxis type="number" dataKey="return" name="Return (%)" tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }} label={{ value: 'Return %', angle: -90, position: 'insideLeft', fill: 'hsl(var(--muted-foreground))', fontSize: 11 }} />
           <ZAxis range={[60, 60]} />
-          <Tooltip contentStyle={{ background: 'hsl(220, 25%, 8%)', border: '1px solid hsl(220, 20%, 14%)', borderRadius: '8px', fontSize: '12px' }} formatter={(v: number, name: string) => [`${v}%`, name]} />
-          <Scatter name="Efficient Frontier" data={frontier} fill="hsl(190, 95%, 50%)" fillOpacity={0.6} line={{ stroke: 'hsl(190, 95%, 50%)', strokeWidth: 2 }} />
-          <Scatter name="Current Portfolio" data={current} fill="hsl(38, 92%, 55%)" shape="diamond">
+          <Tooltip contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', fontSize: '12px' }} formatter={(v: number, name: string) => [`${v}%`, name]} />
+          <Scatter name="Efficient Frontier" data={frontier} fill="hsl(var(--primary))" fillOpacity={0.6} line={{ stroke: 'hsl(var(--primary))', strokeWidth: 2 }} />
+          <Scatter name="Current Portfolio" data={current} fill="hsl(var(--warning))" shape="diamond">
             <ZAxis range={[200, 200]} />
           </Scatter>
-          <Scatter name="Max Sharpe" data={optimal} fill="hsl(145, 70%, 50%)" shape="star">
+          <Scatter name="Max Sharpe" data={optimal} fill="hsl(var(--profit))" shape="star">
             <ZAxis range={[200, 200]} />
           </Scatter>
         </ScatterChart>
@@ -141,7 +141,7 @@ function Content({ exchangeFilter: _ }: { exchangeFilter: Exchange | 'all' }) {
                     <Pie data={allocationData} cx="50%" cy="50%" innerRadius={60} outerRadius={90} dataKey="value" stroke="none">
                       {allocationData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
                     </Pie>
-                    <Tooltip contentStyle={{ background: 'hsl(220, 25%, 8%)', border: '1px solid hsl(220, 20%, 14%)', borderRadius: '8px', fontSize: '12px' }} formatter={(value: number) => [`${value}%`, '']} />
+                    <Tooltip contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', fontSize: '12px' }} formatter={(value: number) => [`${value}%`, '']} />
                   </PieChart>
                 </ResponsiveContainer>
               </div>
@@ -172,9 +172,9 @@ function Content({ exchangeFilter: _ }: { exchangeFilter: Exchange | 'all' }) {
             <h2 className="text-sm font-semibold text-foreground mb-3">Efficient Frontier (skfolio)</h2>
             <EfficientFrontierChart />
             <div className="flex items-center gap-4 mt-3 text-xs text-muted-foreground">
-              <div className="flex items-center gap-1"><div className="w-3 h-3 rounded-full" style={{ background: 'hsl(190, 95%, 50%)' }} /> Frontier</div>
-              <div className="flex items-center gap-1"><div className="w-3 h-3 rounded" style={{ background: 'hsl(38, 92%, 55%)' }} /> Current</div>
-              <div className="flex items-center gap-1"><div className="w-3 h-3 rounded" style={{ background: 'hsl(145, 70%, 50%)' }} /> Max Sharpe</div>
+              <div className="flex items-center gap-1"><div className="w-3 h-3 rounded-full bg-primary" /> Frontier</div>
+              <div className="flex items-center gap-1"><div className="w-3 h-3 rounded bg-warning" /> Current</div>
+              <div className="flex items-center gap-1"><div className="w-3 h-3 rounded bg-profit" /> Max Sharpe</div>
             </div>
           </div>
         </TabsContent>

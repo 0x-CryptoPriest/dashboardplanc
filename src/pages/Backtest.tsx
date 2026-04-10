@@ -1,5 +1,6 @@
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { PageTransition } from "@/components/PageTransition";
+import { MonthlyHeatmap } from "@/components/trading/MonthlyHeatmap";
 import { Exchange, mockBacktestConfigs, mockBacktestResults, BacktestConfig } from "@/lib/mock-data";
 import { useState } from "react";
 import { motion } from "framer-motion";
@@ -41,62 +42,6 @@ function BacktestCard({ config, isSelected, onClick, delay }: { config: Backtest
   );
 }
 
-function MonthlyHeatmap({ data }: { data: { year: number; month: number; return: number }[] }) {
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  const years = [...new Set(data.map(d => d.year))];
-
-  const getColor = (val: number) => {
-    if (val > 10) return 'bg-profit/80 text-primary-foreground';
-    if (val > 5) return 'bg-profit/50 text-foreground';
-    if (val > 0) return 'bg-profit/20 text-foreground';
-    if (val > -3) return 'bg-loss/20 text-foreground';
-    if (val > -5) return 'bg-loss/50 text-foreground';
-    return 'bg-loss/80 text-primary-foreground';
-  };
-
-  return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-xs">
-        <thead>
-          <tr>
-            <th className="text-left text-muted-foreground p-1">Year</th>
-            {months.map(m => <th key={m} className="text-center text-muted-foreground p-1">{m}</th>)}
-            <th className="text-center text-muted-foreground p-1">Total</th>
-          </tr>
-        </thead>
-        <tbody>
-          {years.map(year => {
-            const yearData = data.filter(d => d.year === year);
-            const total = yearData.reduce((s, d) => s + d.return, 0);
-            return (
-              <tr key={year}>
-                <td className="text-muted-foreground font-mono p-1">{year}</td>
-                {months.map((_, mi) => {
-                  const d = yearData.find(r => r.month === mi + 1);
-                  return (
-                    <td key={mi} className="p-0.5">
-                      {d ? (
-                        <div className={`${getColor(d.return)} rounded px-1 py-1 text-center font-mono`}>
-                          {d.return > 0 ? '+' : ''}{d.return.toFixed(1)}%
-                        </div>
-                      ) : <div className="bg-muted/30 rounded px-1 py-1 text-center text-muted-foreground">—</div>}
-                    </td>
-                  );
-                })}
-                <td className="p-0.5">
-                  <div className={`${getColor(total)} rounded px-1 py-1 text-center font-mono font-bold`}>
-                    {total > 0 ? '+' : ''}{total.toFixed(1)}%
-                  </div>
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
 function Content({ exchangeFilter }: { exchangeFilter: Exchange | 'all' }) {
   const [selectedId, setSelectedId] = useState<string>('bt1');
   const configs = exchangeFilter === 'all' ? mockBacktestConfigs : mockBacktestConfigs.filter(c => c.exchange === exchangeFilter);
@@ -107,7 +52,6 @@ function Content({ exchangeFilter }: { exchangeFilter: Exchange | 'all' }) {
     <div className="space-y-4">
       <h1 className="text-lg font-bold text-foreground">Backtesting</h1>
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
-        {/* Left: backtest list */}
         <div className="space-y-2">
           <h2 className="text-sm font-semibold text-muted-foreground">Backtest Runs</h2>
           {configs.map((c, i) => (
@@ -115,11 +59,9 @@ function Content({ exchangeFilter }: { exchangeFilter: Exchange | 'all' }) {
           ))}
         </div>
 
-        {/* Right: results */}
         <div className="lg:col-span-3 space-y-4">
           {result ? (
             <>
-              {/* Key metrics */}
               <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-2">
                 {[
                   { label: 'Total Return', value: `+${result.totalReturn}%` },
@@ -154,13 +96,13 @@ function Content({ exchangeFilter }: { exchangeFilter: Exchange | 'all' }) {
                     <div className="h-[350px]">
                       <ResponsiveContainer width="100%" height="100%">
                         <LineChart data={result.equityCurve}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="hsl(220, 20%, 14%)" />
-                          <XAxis dataKey="date" tick={{ fill: 'hsl(215, 15%, 50%)', fontSize: 10 }} tickFormatter={v => v.slice(5)} interval={Math.floor(result.equityCurve.length / 8)} />
-                          <YAxis tick={{ fill: 'hsl(215, 15%, 50%)', fontSize: 10 }} tickFormatter={v => `$${(v / 1000).toFixed(0)}k`} />
-                          <Tooltip contentStyle={{ background: 'hsl(220, 25%, 8%)', border: '1px solid hsl(220, 20%, 14%)', borderRadius: '8px', fontSize: '12px' }} formatter={(v: number) => [`$${v.toLocaleString()}`, '']} />
+                          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                          <XAxis dataKey="date" tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }} tickFormatter={v => v.slice(5)} interval={Math.floor(result.equityCurve.length / 8)} />
+                          <YAxis tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }} tickFormatter={v => `$${(v / 1000).toFixed(0)}k`} />
+                          <Tooltip contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', fontSize: '12px' }} formatter={(v: number) => [`$${v.toLocaleString()}`, '']} />
                           <Legend />
-                          <Line type="monotone" dataKey="equity" stroke="hsl(190, 95%, 50%)" strokeWidth={2} dot={false} name="Strategy" />
-                          <Line type="monotone" dataKey="benchmark" stroke="hsl(215, 15%, 50%)" strokeWidth={1} dot={false} strokeDasharray="5 5" name="Benchmark" />
+                          <Line type="monotone" dataKey="equity" stroke="hsl(var(--primary))" strokeWidth={2} dot={false} name="Strategy" />
+                          <Line type="monotone" dataKey="benchmark" stroke="hsl(var(--muted-foreground))" strokeWidth={1} dot={false} strokeDasharray="5 5" name="Benchmark" />
                         </LineChart>
                       </ResponsiveContainer>
                     </div>
@@ -169,7 +111,7 @@ function Content({ exchangeFilter }: { exchangeFilter: Exchange | 'all' }) {
 
                 <TabsContent value="monthly">
                   <div className="rounded-lg border border-border bg-card p-4">
-                    <MonthlyHeatmap data={result.monthlyReturns} />
+                    <MonthlyHeatmap data={result.monthlyReturns} compact />
                   </div>
                 </TabsContent>
 

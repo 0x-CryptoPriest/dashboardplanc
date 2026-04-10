@@ -460,8 +460,7 @@ export const generateRollingSharpe = () => {
 };
 
 // Return distribution data
-export const generateReturnDistribution = () => {
-  const bins: { range: string; count: number; midpoint: number }[] = [];
+export const generateReturnDistribution = (): { range: string; count: number; midpoint: number }[] => {
   const ranges = [
     { range: '< -5%', midpoint: -7, count: 3 },
     { range: '-5 to -3%', midpoint: -4, count: 8 },
