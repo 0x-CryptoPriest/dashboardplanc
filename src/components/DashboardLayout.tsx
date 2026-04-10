@@ -6,6 +6,7 @@ import { NotificationCenter } from "@/components/trading/NotificationCenter";
 import { Exchange } from "@/lib/mock-data";
 import { useState } from "react";
 import { Wifi } from "lucide-react";
+import { useEffect } from "react";
 
 interface DashboardLayoutProps {
   children: (props: { exchangeFilter: Exchange | 'all' }) => React.ReactNode;
@@ -13,6 +14,12 @@ interface DashboardLayoutProps {
 
 export function DashboardLayout({ children }: DashboardLayoutProps) {
   const [exchangeFilter, setExchangeFilter] = useState<Exchange | 'all'>('all');
+  const [clock, setClock] = useState(new Date().toLocaleTimeString());
+
+  useEffect(() => {
+    const timer = setInterval(() => setClock(new Date().toLocaleTimeString()), 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   return (
     <SidebarProvider>
@@ -34,7 +41,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                 <span className="text-muted-foreground">Connected</span>
               </div>
               <div className="text-xs font-mono text-muted-foreground hidden sm:block">
-                {new Date().toLocaleTimeString()}
+                {clock}
               </div>
             </div>
           </header>
