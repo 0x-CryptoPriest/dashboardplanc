@@ -24,23 +24,23 @@ export function EquityChart() {
           <AreaChart data={data} margin={{ top: 5, right: 5, bottom: 5, left: 5 }}>
             <defs>
               <linearGradient id="equityGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="hsl(190, 95%, 50%)" stopOpacity={0.3} />
-                <stop offset="100%" stopColor="hsl(190, 95%, 50%)" stopOpacity={0} />
+                <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
+                <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={0} />
               </linearGradient>
               <linearGradient id="benchGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="hsl(215, 15%, 50%)" stopOpacity={0.1} />
-                <stop offset="100%" stopColor="hsl(215, 15%, 50%)" stopOpacity={0} />
+                <stop offset="0%" stopColor="hsl(var(--muted-foreground))" stopOpacity={0.1} />
+                <stop offset="100%" stopColor="hsl(var(--muted-foreground))" stopOpacity={0} />
               </linearGradient>
             </defs>
             <XAxis
               dataKey="date"
-              tick={{ fontSize: 10, fill: 'hsl(215, 15%, 50%)' }}
+              tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
               axisLine={false}
               tickLine={false}
               tickFormatter={(v) => v.slice(5)}
             />
             <YAxis
-              tick={{ fontSize: 10, fill: 'hsl(215, 15%, 50%)' }}
+              tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
               axisLine={false}
               tickLine={false}
               tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`}
@@ -48,13 +48,13 @@ export function EquityChart() {
             />
             <Tooltip
               contentStyle={{
-                background: 'hsl(220, 25%, 8%)',
-                border: '1px solid hsl(220, 20%, 14%)',
+                background: 'hsl(var(--card))',
+                border: '1px solid hsl(var(--border))',
                 borderRadius: '8px',
                 fontSize: '12px',
                 fontFamily: 'JetBrains Mono',
               }}
-              labelStyle={{ color: 'hsl(215, 15%, 50%)' }}
+              labelStyle={{ color: 'hsl(var(--muted-foreground))' }}
               formatter={(value: number, name: string) => [
                 `$${value.toLocaleString()}`,
                 name === 'equity' ? 'Portfolio' : 'Benchmark'
@@ -63,7 +63,7 @@ export function EquityChart() {
             <Area
               type="monotone"
               dataKey="benchmark"
-              stroke="hsl(215, 15%, 50%)"
+              stroke="hsl(var(--muted-foreground))"
               strokeWidth={1}
               fill="url(#benchGrad)"
               name="benchmark"
@@ -71,7 +71,7 @@ export function EquityChart() {
             <Area
               type="monotone"
               dataKey="equity"
-              stroke="hsl(190, 95%, 50%)"
+              stroke="hsl(var(--primary))"
               strokeWidth={2}
               fill="url(#equityGrad)"
               name="equity"
@@ -80,8 +80,8 @@ export function EquityChart() {
               <Brush
                 dataKey="date"
                 height={20}
-                stroke="hsl(220, 20%, 14%)"
-                fill="hsl(220, 25%, 8%)"
+                stroke="hsl(var(--border))"
+                fill="hsl(var(--card))"
                 tickFormatter={(v) => v.slice(5)}
               />
             )}
