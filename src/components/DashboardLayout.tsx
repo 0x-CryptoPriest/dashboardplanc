@@ -3,7 +3,7 @@ import { AppSidebar } from "@/components/AppSidebar";
 import { ExchangeSelector } from "@/components/trading/ExchangeSelector";
 import { CommandPalette } from "@/components/CommandPalette";
 import { NotificationCenter } from "@/components/trading/NotificationCenter";
-import { Exchange } from "@/lib/mock-data";
+import { Exchange } from "@/lib/planc-api";
 import { useState } from "react";
 import { Wifi } from "lucide-react";
 import { useEffect } from "react";

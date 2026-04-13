@@ -1,4 +1,4 @@
-import { Strategy } from "@/lib/mock-data";
+import { Strategy } from "@/lib/planc-api";
 import { StatusBadge } from "./StatusBadge";
 import { motion } from "framer-motion";
 import { Activity, TrendingUp, Target, BarChart3 } from "lucide-react";

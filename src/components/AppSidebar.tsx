@@ -9,6 +9,7 @@ import {
   Zap,
   FlaskConical,
   Database,
+  Activity,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
@@ -18,6 +19,7 @@ import {
   SidebarGroup,
   SidebarGroupContent,
   SidebarGroupLabel,
+  SidebarFooter,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
@@ -98,6 +100,24 @@ export function AppSidebar() {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+
+        <SidebarFooter>
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton asChild isActive={isActive("/system-health")}>
+                <NavLink
+                  to="/system-health"
+                  end
+                  className="hover:bg-accent/50"
+                  activeClassName="bg-accent text-primary font-medium"
+                >
+                  <Activity className="mr-2 h-4 w-4" />
+                  {!collapsed && <span>System Health</span>}
+                </NavLink>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </SidebarFooter>
       </SidebarContent>
     </Sidebar>
   );

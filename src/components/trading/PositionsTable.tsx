@@ -1,4 +1,4 @@
-import { Position, Exchange } from "@/lib/mock-data";
+import { Position, Exchange } from "@/lib/planc-api";
 import { StatusBadge } from "./StatusBadge";
 
 interface PositionsTableProps {

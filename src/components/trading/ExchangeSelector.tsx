@@ -1,4 +1,4 @@
-import { Exchange } from "@/lib/mock-data";
+import { Exchange } from "@/lib/planc-api";
 
 interface ExchangeSelectorProps {
   selected: Exchange | 'all';

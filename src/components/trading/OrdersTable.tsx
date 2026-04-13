@@ -1,4 +1,4 @@
-import { Order, Exchange } from "@/lib/mock-data";
+import { Order, Exchange } from "@/lib/planc-api";
 import { StatusBadge } from "./StatusBadge";
 
 interface OrdersTableProps {

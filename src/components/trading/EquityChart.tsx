@@ -1,18 +1,33 @@
 import { useMemo, useState } from "react";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, Brush } from "recharts";
-import { generateEquityCurve } from "@/lib/mock-data";
+import { EquityPoint } from "@/lib/planc-api";
 import { TimeRangeSelector } from "@/components/trading/TimeRangeSelector";
 
-export function EquityChart() {
-  const fullData = useMemo(() => generateEquityCurve(), []);
+interface EquityChartProps {
+  data?: EquityPoint[];
+}
+
+export function EquityChart({ data: externalData }: EquityChartProps) {
+  const fullData = useMemo(() => externalData ?? [], [externalData]);
   const [timeRange, setTimeRange] = useState("ALL");
 
   const data = useMemo(() => {
-    const rangeMap: Record<string, number> = { "1D": 1, "1W": 7, "1M": 30, "3M": 90, "6M": 180, "1Y": 365 };
+    const rangeMap: Record<string, number> = {
+      "1D": 1,
+      "1W": 7,
+      "1M": 30,
+      "3M": 90,
+      "6M": 180,
+      "1Y": 365,
+    };
     if (timeRange === "ALL") return fullData;
     const days = rangeMap[timeRange] ?? fullData.length;
     return fullData.slice(-Math.min(days, fullData.length));
   }, [fullData, timeRange]);
+
+  if (fullData.length === 0) {
+    return <div className="text-sm text-muted-foreground">No equity data available.</div>;
+  }
 
   return (
     <div className="space-y-2">
@@ -34,30 +49,30 @@ export function EquityChart() {
             </defs>
             <XAxis
               dataKey="date"
-              tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+              tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
               axisLine={false}
               tickLine={false}
-              tickFormatter={(v) => v.slice(5)}
+              tickFormatter={(value) => value.slice(5)}
             />
             <YAxis
-              tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+              tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
               axisLine={false}
               tickLine={false}
-              tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`}
-              domain={['auto', 'auto']}
+              tickFormatter={(value) => `$${(value / 1000).toFixed(0)}k`}
+              domain={["auto", "auto"]}
             />
             <Tooltip
               contentStyle={{
-                background: 'hsl(var(--card))',
-                border: '1px solid hsl(var(--border))',
-                borderRadius: '8px',
-                fontSize: '12px',
-                fontFamily: 'JetBrains Mono',
+                background: "hsl(var(--card))",
+                border: "1px solid hsl(var(--border))",
+                borderRadius: "8px",
+                fontSize: "12px",
+                fontFamily: "JetBrains Mono",
               }}
-              labelStyle={{ color: 'hsl(var(--muted-foreground))' }}
+              labelStyle={{ color: "hsl(var(--muted-foreground))" }}
               formatter={(value: number, name: string) => [
                 `$${value.toLocaleString()}`,
-                name === 'equity' ? 'Portfolio' : 'Benchmark'
+                name === "equity" ? "Portfolio" : "Benchmark",
               ]}
             />
             <Area
@@ -82,7 +97,7 @@ export function EquityChart() {
                 height={20}
                 stroke="hsl(var(--border))"
                 fill="hsl(var(--card))"
-                tickFormatter={(v) => v.slice(5)}
+                tickFormatter={(value) => value.slice(5)}
               />
             )}
           </AreaChart>

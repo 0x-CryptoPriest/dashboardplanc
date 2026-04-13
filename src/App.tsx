@@ -13,6 +13,7 @@ import Backtest from "./pages/Backtest";
 import DagsterJobs from "./pages/DagsterJobs";
 import DataManagement from "./pages/DataManagement";
 import Settings from "./pages/Settings";
+import SystemHealth from "./pages/SystemHealth";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -34,6 +35,7 @@ const App = () => (
           <Route path="/data" element={<DataManagement />} />
           <Route path="/jobs" element={<DagsterJobs />} />
           <Route path="/settings" element={<Settings />} />
+          <Route path="/system-health" element={<SystemHealth />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
