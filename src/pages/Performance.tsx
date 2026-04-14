@@ -4,6 +4,8 @@ import { EquityChart } from "@/components/trading/EquityChart";
 import { DrawdownChart } from "@/components/trading/DrawdownChart";
 import { MonthlyHeatmap } from "@/components/trading/MonthlyHeatmap";
 import { PageTransition } from "@/components/PageTransition";
+import { SkeletonChart } from "@/components/SkeletonDashboard";
+import { Button } from "@/components/ui/button";
 import {
   DrawdownPoint,
   EquityPoint,
@@ -126,39 +128,40 @@ function Content({ exchangeFilter: _exchangeFilter }: { exchangeFilter: Exchange
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const loadPerformance = async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const [summaryData, equityData, drawdownData, monthlyData, sharpeData, distributionData] = await Promise.all([
+        fetchPerformanceSummary(),
+        fetchEquityCurve("ALL"),
+        fetchDrawdown(),
+        fetchMonthlyReturns(),
+        fetchRollingSharpe(),
+        fetchReturnDistribution(),
+      ]);
+      setSummary(summaryData);
+      setEquityCurve(equityData);
+      setDrawdown(drawdownData);
+      setMonthlyReturns(monthlyData);
+      setRollingSharpe(sharpeData);
+      setDistribution(distributionData);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "failed to load performance data");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   useEffect(() => {
     let isMounted = true;
-
-    (async () => {
-      setIsLoading(true);
-      setError(null);
-      try {
-        const [summaryData, equityData, drawdownData, monthlyData, sharpeData, distributionData] = await Promise.all([
-          fetchPerformanceSummary(),
-          fetchEquityCurve("ALL"),
-          fetchDrawdown(),
-          fetchMonthlyReturns(),
-          fetchRollingSharpe(),
-          fetchReturnDistribution(),
-        ]);
-        if (!isMounted) return;
-        setSummary(summaryData);
-        setEquityCurve(equityData);
-        setDrawdown(drawdownData);
-        setMonthlyReturns(monthlyData);
-        setRollingSharpe(sharpeData);
-        setDistribution(distributionData);
-      } catch (err) {
-        if (isMounted) {
-          setError(err instanceof Error ? err.message : "failed to load performance data");
-        }
-      } finally {
-        if (isMounted) {
-          setIsLoading(false);
-        }
+    const load = async () => {
+      if (!isMounted) {
+        return;
       }
-    })();
-
+      await loadPerformance();
+    };
+    void load();
     return () => {
       isMounted = false;
     };
@@ -181,7 +184,14 @@ function Content({ exchangeFilter: _exchangeFilter }: { exchangeFilter: Exchange
     <PageTransition>
       <div className="space-y-4">
         <h1 className="text-lg font-bold text-foreground">Performance</h1>
-        {error ? <div className="text-sm text-loss">{error}</div> : null}
+        {error ? (
+          <div className="rounded-lg border border-loss/30 bg-loss/10 p-3 flex items-center justify-between gap-3">
+            <p className="text-sm text-loss">{error}</p>
+            <Button variant="outline" size="sm" onClick={() => void loadPerformance()}>
+              Retry
+            </Button>
+          </div>
+        ) : null}
 
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-2">
           {(isLoading ? Array.from({ length: 8 }) : metricCards).map((metric, index) => (
@@ -201,37 +211,58 @@ function Content({ exchangeFilter: _exchangeFilter }: { exchangeFilter: Exchange
           </TabsList>
 
           <TabsContent value="equity" className="space-y-4">
-            <div className="rounded-lg border border-border bg-card p-4">
-              <h2 className="text-sm font-semibold text-foreground mb-3">Equity Curve</h2>
-              <EquityChart data={equityCurve} />
-            </div>
-            <div className="rounded-lg border border-border bg-card p-4">
-              <h2 className="text-sm font-semibold text-foreground mb-3">Drawdown</h2>
-              <DrawdownChart data={drawdown} />
-            </div>
+            {isLoading ? (
+              <>
+                <SkeletonChart />
+                <SkeletonChart />
+              </>
+            ) : (
+              <>
+                <div className="rounded-lg border border-border bg-card p-4">
+                  <h2 className="text-sm font-semibold text-foreground mb-3">Equity Curve</h2>
+                  <EquityChart data={equityCurve} />
+                </div>
+                <div className="rounded-lg border border-border bg-card p-4">
+                  <h2 className="text-sm font-semibold text-foreground mb-3">Drawdown</h2>
+                  <DrawdownChart data={drawdown} />
+                </div>
+              </>
+            )}
           </TabsContent>
 
           <TabsContent value="monthly">
-            <div className="rounded-lg border border-border bg-card p-4">
-              <h2 className="text-sm font-semibold text-foreground mb-3">
-                Monthly Returns Heatmap (QuantStats Style)
-              </h2>
-              <MonthlyHeatmap data={monthlyReturns} />
-            </div>
+            {isLoading ? (
+              <SkeletonChart />
+            ) : (
+              <div className="rounded-lg border border-border bg-card p-4">
+                <h2 className="text-sm font-semibold text-foreground mb-3">
+                  Monthly Returns Heatmap (QuantStats Style)
+                </h2>
+                <MonthlyHeatmap data={monthlyReturns} />
+              </div>
+            )}
           </TabsContent>
 
           <TabsContent value="rolling">
-            <div className="rounded-lg border border-border bg-card p-4">
-              <h2 className="text-sm font-semibold text-foreground mb-3">Rolling 90-Day Sharpe Ratio</h2>
-              <RollingSharpeChart data={rollingSharpe} />
-            </div>
+            {isLoading ? (
+              <SkeletonChart />
+            ) : (
+              <div className="rounded-lg border border-border bg-card p-4">
+                <h2 className="text-sm font-semibold text-foreground mb-3">Rolling 90-Day Sharpe Ratio</h2>
+                <RollingSharpeChart data={rollingSharpe} />
+              </div>
+            )}
           </TabsContent>
 
           <TabsContent value="distribution">
-            <div className="rounded-lg border border-border bg-card p-4">
-              <h2 className="text-sm font-semibold text-foreground mb-3">Daily Return Distribution</h2>
-              <ReturnDistributionChart data={distribution} />
-            </div>
+            {isLoading ? (
+              <SkeletonChart />
+            ) : (
+              <div className="rounded-lg border border-border bg-card p-4">
+                <h2 className="text-sm font-semibold text-foreground mb-3">Daily Return Distribution</h2>
+                <ReturnDistributionChart data={distribution} />
+              </div>
+            )}
           </TabsContent>
         </Tabs>
       </div>

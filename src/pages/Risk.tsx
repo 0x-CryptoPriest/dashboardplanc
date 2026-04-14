@@ -3,6 +3,8 @@ import { DashboardLayout } from "@/components/DashboardLayout";
 import { RiskPanel } from "@/components/trading/RiskPanel";
 import { DrawdownChart } from "@/components/trading/DrawdownChart";
 import { PageTransition } from "@/components/PageTransition";
+import { SkeletonCards, SkeletonChart } from "@/components/SkeletonDashboard";
+import { Button } from "@/components/ui/button";
 import {
   AllocationSlice,
   CorrelationPair,
@@ -194,33 +196,41 @@ function Content({ exchangeFilter: _exchangeFilter }: { exchangeFilter: Exchange
   const [correlations, setCorrelations] = useState<CorrelationPair[]>([]);
   const [frontier, setFrontier] = useState<EfficientFrontierPoint[]>([]);
   const [drawdown, setDrawdown] = useState<DrawdownPoint[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const loadRisk = async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const [allocationData, correlationData, frontierData, drawdownData] = await Promise.all([
+        fetchRiskAllocation(),
+        fetchRiskCorrelation(),
+        fetchEfficientFrontier(),
+        fetchDrawdown(),
+      ]);
+      setAllocation(allocationData.current);
+      setOptimized(allocationData.optimized);
+      setRecommendation(allocationData.recommendation);
+      setCorrelations(correlationData);
+      setFrontier(frontierData);
+      setDrawdown(drawdownData);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "failed to load risk data");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
     let isMounted = true;
-
-    (async () => {
-      setError(null);
-      try {
-        const [allocationData, correlationData, frontierData, drawdownData] = await Promise.all([
-          fetchRiskAllocation(),
-          fetchRiskCorrelation(),
-          fetchEfficientFrontier(),
-          fetchDrawdown(),
-        ]);
-        if (!isMounted) return;
-        setAllocation(allocationData.current);
-        setOptimized(allocationData.optimized);
-        setRecommendation(allocationData.recommendation);
-        setCorrelations(correlationData);
-        setFrontier(frontierData);
-        setDrawdown(drawdownData);
-      } catch (err) {
-        if (isMounted) {
-          setError(err instanceof Error ? err.message : "failed to load risk data");
-        }
+    const load = async () => {
+      if (!isMounted) {
+        return;
       }
-    })();
+      await loadRisk();
+    };
+    void load();
 
     return () => {
       isMounted = false;
@@ -231,7 +241,14 @@ function Content({ exchangeFilter: _exchangeFilter }: { exchangeFilter: Exchange
     <PageTransition>
       <div className="space-y-4">
         <h1 className="text-lg font-bold text-foreground">Risk Analysis</h1>
-        {error ? <div className="text-sm text-loss">{error}</div> : null}
+        {error ? (
+          <div className="rounded-lg border border-loss/30 bg-loss/10 p-3 flex items-center justify-between gap-3">
+            <p className="text-sm text-loss">{error}</p>
+            <Button variant="outline" size="sm" onClick={() => void loadRisk()}>
+              Retry
+            </Button>
+          </div>
+        ) : null}
 
         <Tabs defaultValue="overview" className="w-full">
           <TabsList className="bg-muted/50">
@@ -246,57 +263,63 @@ function Content({ exchangeFilter: _exchangeFilter }: { exchangeFilter: Exchange
               <div className="lg:col-span-2 space-y-4">
                 <div className="rounded-lg border border-border bg-card p-4">
                   <h2 className="text-sm font-semibold text-foreground mb-3">Risk Metrics</h2>
-                  <RiskPanel />
+                  {isLoading ? <SkeletonCards count={4} /> : <RiskPanel />}
                 </div>
                 <div className="rounded-lg border border-border bg-card p-4">
                   <h2 className="text-sm font-semibold text-foreground mb-3">Drawdown History</h2>
-                  <DrawdownChart data={drawdown} />
+                  {isLoading ? <SkeletonChart /> : <DrawdownChart data={drawdown} />}
                 </div>
               </div>
               <div className="rounded-lg border border-border bg-card p-4">
                 <h2 className="text-sm font-semibold text-foreground mb-3">Asset Allocation</h2>
-                <div className="h-[250px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={allocation}
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={60}
-                        outerRadius={90}
-                        dataKey="value"
-                        stroke="none"
-                      >
-                        {allocation.map((entry, index) => (
-                          <Cell key={entry.name} fill={palette[index % palette.length]} />
-                        ))}
-                      </Pie>
-                      <Tooltip
-                        contentStyle={{
-                          background: "hsl(var(--card))",
-                          border: "1px solid hsl(var(--border))",
-                          borderRadius: "8px",
-                          fontSize: "12px",
-                        }}
-                        formatter={(value: number) => [`${value}%`, ""]}
-                      />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-                <div className="space-y-2 mt-2">
-                  {allocation.map((entry, index) => (
-                    <div key={entry.name} className="flex items-center justify-between text-sm">
-                      <div className="flex items-center gap-2">
-                        <span
-                          className="h-2.5 w-2.5 rounded-full"
-                          style={{ background: palette[index % palette.length] }}
-                        />
-                        <span className="text-muted-foreground">{entry.name}</span>
-                      </div>
-                      <span className="font-mono text-foreground">{entry.value}%</span>
+                {isLoading ? (
+                  <SkeletonChart height="h-[250px]" />
+                ) : (
+                  <>
+                    <div className="h-[250px]">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie
+                            data={allocation}
+                            cx="50%"
+                            cy="50%"
+                            innerRadius={60}
+                            outerRadius={90}
+                            dataKey="value"
+                            stroke="none"
+                          >
+                            {allocation.map((entry, index) => (
+                              <Cell key={entry.name} fill={palette[index % palette.length]} />
+                            ))}
+                          </Pie>
+                          <Tooltip
+                            contentStyle={{
+                              background: "hsl(var(--card))",
+                              border: "1px solid hsl(var(--border))",
+                              borderRadius: "8px",
+                              fontSize: "12px",
+                            }}
+                            formatter={(value: number) => [`${value}%`, ""]}
+                          />
+                        </PieChart>
+                      </ResponsiveContainer>
                     </div>
-                  ))}
-                </div>
+                    <div className="space-y-2 mt-2">
+                      {allocation.map((entry, index) => (
+                        <div key={entry.name} className="flex items-center justify-between text-sm">
+                          <div className="flex items-center gap-2">
+                            <span
+                              className="h-2.5 w-2.5 rounded-full"
+                              style={{ background: palette[index % palette.length] }}
+                            />
+                            <span className="text-muted-foreground">{entry.name}</span>
+                          </div>
+                          <span className="font-mono text-foreground">{entry.value}%</span>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           </TabsContent>
@@ -306,14 +329,14 @@ function Content({ exchangeFilter: _exchangeFilter }: { exchangeFilter: Exchange
               <h2 className="text-sm font-semibold text-foreground mb-3">
                 Asset Correlation Matrix (skfolio)
               </h2>
-              <CorrelationMatrix correlations={correlations} />
+              {isLoading ? <SkeletonChart /> : <CorrelationMatrix correlations={correlations} />}
             </div>
           </TabsContent>
 
           <TabsContent value="frontier">
             <div className="rounded-lg border border-border bg-card p-4">
               <h2 className="text-sm font-semibold text-foreground mb-3">Efficient Frontier (skfolio)</h2>
-              <EfficientFrontierChart data={frontier} />
+              {isLoading ? <SkeletonChart /> : <EfficientFrontierChart data={frontier} />}
               <div className="flex items-center gap-4 mt-3 text-xs text-muted-foreground">
                 <div className="flex items-center gap-1"><div className="w-3 h-3 rounded-full bg-primary" /> Frontier</div>
                 <div className="flex items-center gap-1"><div className="w-3 h-3 rounded bg-warning" /> Current</div>
@@ -327,36 +350,40 @@ function Content({ exchangeFilter: _exchangeFilter }: { exchangeFilter: Exchange
               <h2 className="text-sm font-semibold text-foreground mb-3">
                 Portfolio Optimization Suggestions (skfolio)
               </h2>
-              <div className="space-y-3">
-                {optimized.map((allocationItem) => (
-                  <div key={allocationItem.name} className="flex items-center gap-3">
-                    <span className="font-mono text-sm text-foreground w-16">{allocationItem.name}</span>
-                    <div className="flex-1 flex items-center gap-2">
-                      <div className="flex-1 bg-muted rounded-full h-4 relative overflow-hidden">
-                        <div
-                          className="absolute inset-y-0 left-0 bg-warning/50 rounded-full"
-                          style={{ width: `${allocationItem.current}%` }}
-                        />
-                        <div
-                          className="absolute inset-y-0 left-0 border-r-2 border-profit h-full"
-                          style={{ width: `${allocationItem.optimal}%` }}
-                        />
+              {isLoading ? (
+                <SkeletonCards count={3} />
+              ) : (
+                <div className="space-y-3">
+                  {optimized.map((allocationItem) => (
+                    <div key={allocationItem.name} className="flex items-center gap-3">
+                      <span className="font-mono text-sm text-foreground w-16">{allocationItem.name}</span>
+                      <div className="flex-1 flex items-center gap-2">
+                        <div className="flex-1 bg-muted rounded-full h-4 relative overflow-hidden">
+                          <div
+                            className="absolute inset-y-0 left-0 bg-warning/50 rounded-full"
+                            style={{ width: `${allocationItem.current}%` }}
+                          />
+                          <div
+                            className="absolute inset-y-0 left-0 border-r-2 border-profit h-full"
+                            style={{ width: `${allocationItem.optimal}%` }}
+                          />
+                        </div>
+                        <div className="text-xs font-mono w-20 text-right">
+                          <span className="text-warning">{allocationItem.current}%</span>
+                          <span className="text-muted-foreground"> → </span>
+                          <span className="text-profit">{allocationItem.optimal}%</span>
+                        </div>
                       </div>
-                      <div className="text-xs font-mono w-20 text-right">
-                        <span className="text-warning">{allocationItem.current}%</span>
-                        <span className="text-muted-foreground"> → </span>
-                        <span className="text-profit">{allocationItem.optimal}%</span>
-                      </div>
+                      <span
+                        className={`text-xs font-mono ${allocationItem.optimal > allocationItem.current ? "text-profit" : allocationItem.optimal < allocationItem.current ? "text-loss" : "text-muted-foreground"}`}
+                      >
+                        {allocationItem.optimal > allocationItem.current ? "+" : ""}
+                        {allocationItem.optimal - allocationItem.current}%
+                      </span>
                     </div>
-                    <span
-                      className={`text-xs font-mono ${allocationItem.optimal > allocationItem.current ? "text-profit" : allocationItem.optimal < allocationItem.current ? "text-loss" : "text-muted-foreground"}`}
-                    >
-                      {allocationItem.optimal > allocationItem.current ? "+" : ""}
-                      {allocationItem.optimal - allocationItem.current}%
-                    </span>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
               <div className="mt-4 p-3 rounded-lg bg-primary/5 border border-primary/20 text-xs text-muted-foreground">
                 <strong className="text-primary">Recommendation:</strong> {recommendation}
               </div>

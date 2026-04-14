@@ -1,4 +1,5 @@
 import type { SystemHealthSnapshot, SystemLogsSnapshot } from "@/lib/system-health";
+import { clearAccessToken, getAccessToken } from "@/lib/auth-token";
 
 const API_BASE_URL =
   (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/$/, "") ??
@@ -10,6 +11,18 @@ type ApiEnvelope<T> = {
   success: boolean;
   data: T;
   error?: string | null;
+};
+
+export type AuthLoginResponse = {
+  access_token: string;
+  token_type: "bearer";
+  expires_in: number;
+  username: string;
+  issued_at: string;
+};
+
+export type AuthProfile = {
+  username: string;
 };
 
 export type Exchange = "binance" | "hyperliquid";
@@ -289,6 +302,22 @@ export type NotificationPreference = {
   enabled: boolean;
 };
 
+export type RuntimeTradingMode = "paper" | "live" | "disconnected";
+
+export type RuntimeSettings = {
+  tradingMode: RuntimeTradingMode;
+  sessionStatus: "running" | "stopped";
+  sessionsRunning: number;
+  sessionsTotal: number;
+  activeAccounts: number;
+  liveAccounts: number;
+  paperAccounts: number;
+  liveEnabled: boolean;
+  websocketChannels: number;
+  websocketSubscribers: number;
+  updatedAt: string;
+};
+
 type BackendAccount = {
   account_id: string;
   exchange: Exchange;
@@ -306,13 +335,18 @@ type BackendOrder = {
   status: string;
   notional: number;
   exchange?: Exchange;
+  strategy?: string;
+  filled_at?: string;
 };
 
 type BackendPosition = {
   symbol: string;
   quantity: number;
   avg_price: number;
+  mark_price?: number;
+  unrealized_pnl?: number;
   exchange?: Exchange;
+  strategy?: string;
 };
 
 type BackendStrategy = {
@@ -335,6 +369,7 @@ type BackendAccountSnapshot = {
 export type StrategyCatalog = {
   id: string;
   name: string;
+  status: Strategy["status"];
   paramsSchema: Record<string, unknown>;
 };
 
@@ -345,6 +380,20 @@ type BackendSessionStatus = {
   equity: number;
   profit: number;
   profit_ratio: number;
+};
+
+type BackendRuntimeSettings = {
+  trading_mode: RuntimeTradingMode;
+  session_status: "running" | "stopped";
+  sessions_running: number;
+  sessions_total: number;
+  active_accounts: number;
+  live_accounts: number;
+  paper_accounts: number;
+  live_enabled: boolean;
+  websocket_channels: number;
+  websocket_subscribers: number;
+  updatedAt: string;
 };
 
 type BackendLiveRisk = {
@@ -358,14 +407,32 @@ type BackendLiveRisk = {
 let bootstrapPromise: Promise<void> | null = null;
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const headers = new Headers(init?.headers ?? undefined);
+  if (!headers.has("Content-Type")) {
+    headers.set("Content-Type", "application/json");
+  }
+
+  const token = getAccessToken();
+  if (token && !headers.has("Authorization")) {
+    headers.set("Authorization", `Bearer ${token}`);
+  }
+
   const response = await fetch(`${API_BASE_URL}${path}`, {
-    headers: { "Content-Type": "application/json" },
+    headers,
     ...init,
   });
 
   const payload = (await response.json()) as ApiEnvelope<T> | { detail?: string };
 
   if (!response.ok) {
+    if (response.status === 401) {
+      clearAccessToken();
+      if (typeof window !== "undefined" && window.location.pathname !== "/login") {
+        const from = `${window.location.pathname}${window.location.search}`;
+        const encoded = encodeURIComponent(from);
+        window.location.href = `/login?from=${encoded}`;
+      }
+    }
     const detail =
       "detail" in payload && typeof payload.detail === "string"
         ? payload.detail
@@ -378,6 +445,20 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   }
 
   return payload.data;
+}
+
+export async function loginWithPassword(
+  username: string,
+  password: string,
+): Promise<AuthLoginResponse> {
+  return request<AuthLoginResponse>("/v1/auth/login", {
+    method: "POST",
+    body: JSON.stringify({ username, password }),
+  });
+}
+
+export async function fetchCurrentUser(): Promise<AuthProfile> {
+  return request<AuthProfile>("/v1/auth/me");
 }
 
 async function createSessionIfNeeded(): Promise<void> {
@@ -506,11 +587,28 @@ export async function fetchStrategies(): Promise<BackendStrategy[]> {
   return request<BackendStrategy[]>("/v1/trading/strategies");
 }
 
+export async function startStrategy(strategyId: string): Promise<{ strategy_id: string; status: string }> {
+  await bootstrapDashboardSession();
+  return request<{ strategy_id: string; status: string }>(
+    `/v1/trading/strategies/${encodeURIComponent(strategyId)}/start`,
+    { method: "POST" },
+  );
+}
+
+export async function stopStrategy(strategyId: string): Promise<{ strategy_id: string; status: string }> {
+  await bootstrapDashboardSession();
+  return request<{ strategy_id: string; status: string }>(
+    `/v1/trading/strategies/${encodeURIComponent(strategyId)}/stop`,
+    { method: "POST" },
+  );
+}
+
 export async function fetchStrategyCatalog(): Promise<StrategyCatalog[]> {
   const strategies = await request<BackendStrategy[]>("/v1/trading/strategies");
   return strategies.map((strategy) => ({
     id: strategy.strategy_id,
     name: strategy.display_name,
+    status: normalizeStrategyStatus(strategy.status),
     paramsSchema: strategy.params_schema ?? {},
   }));
 }
@@ -640,19 +738,30 @@ export async function fetchDashboardSnapshot(): Promise<{
     };
   }
 
-  const mappedPositions: Position[] = positions.map((position, index) => ({
-    id: `${position.symbol}-${index}`,
-    symbol: position.symbol,
-    side: position.quantity >= 0 ? "LONG" : "SHORT",
-    size: Math.abs(position.quantity),
-    entryPrice: position.avg_price,
-    markPrice: position.avg_price,
-    unrealizedPnl: 0,
-    unrealizedPnlPercent: 0,
-    leverage: 1,
-    exchange: normalizeExchange(position.exchange, fallbackExchange),
-    strategy: "session",
-  }));
+  const mappedPositions: Position[] = positions.map((position, index) => {
+    const markPrice = Number(position.mark_price ?? position.avg_price);
+    const size = Math.abs(position.quantity);
+    const unrealized =
+      typeof position.unrealized_pnl === "number"
+        ? position.unrealized_pnl
+        : (markPrice - position.avg_price) * position.quantity;
+    const unrealizedPct =
+      position.avg_price > 0 ? (unrealized / (position.avg_price * size || 1)) * 100 : 0;
+
+    return {
+      id: `${position.symbol}-${index}`,
+      symbol: position.symbol,
+      side: position.quantity >= 0 ? "LONG" : "SHORT",
+      size,
+      entryPrice: position.avg_price,
+      markPrice,
+      unrealizedPnl: unrealized,
+      unrealizedPnlPercent: unrealizedPct,
+      leverage: 1,
+      exchange: normalizeExchange(position.exchange, fallbackExchange),
+      strategy: position.strategy ?? "session",
+    };
+  });
 
   const mappedOrders: Order[] = orders.map((order) => {
     const normalizedStatus = order.status.toUpperCase();
@@ -675,8 +784,8 @@ export async function fetchDashboardSnapshot(): Promise<{
       filled: statusValue === "FILLED" ? order.quantity : 0,
       status: statusValue,
       exchange: normalizeExchange(order.exchange, fallbackExchange),
-      strategy: "session",
-      time: "—",
+      strategy: order.strategy ?? "session",
+      time: order.filled_at ?? "—",
     };
   });
 
@@ -707,19 +816,30 @@ export async function fetchDashboardSnapshot(): Promise<{
 export async function fetchPositionsView(): Promise<Position[]> {
   const [accounts, positions] = await Promise.all([fetchAccounts(), fetchPositions()]);
   const fallbackExchange = resolveExchange(accounts);
-  return positions.map((position, index) => ({
-    id: `${position.symbol}-${index}`,
-    symbol: position.symbol,
-    side: position.quantity >= 0 ? "LONG" : "SHORT",
-    size: Math.abs(position.quantity),
-    entryPrice: position.avg_price,
-    markPrice: position.avg_price,
-    unrealizedPnl: 0,
-    unrealizedPnlPercent: 0,
-    leverage: 1,
-    exchange: normalizeExchange(position.exchange, fallbackExchange),
-    strategy: "session",
-  }));
+  return positions.map((position, index) => {
+    const markPrice = Number(position.mark_price ?? position.avg_price);
+    const size = Math.abs(position.quantity);
+    const unrealized =
+      typeof position.unrealized_pnl === "number"
+        ? position.unrealized_pnl
+        : (markPrice - position.avg_price) * position.quantity;
+    const unrealizedPct =
+      position.avg_price > 0 ? (unrealized / (position.avg_price * size || 1)) * 100 : 0;
+
+    return {
+      id: `${position.symbol}-${index}`,
+      symbol: position.symbol,
+      side: position.quantity >= 0 ? "LONG" : "SHORT",
+      size,
+      entryPrice: position.avg_price,
+      markPrice,
+      unrealizedPnl: unrealized,
+      unrealizedPnlPercent: unrealizedPct,
+      leverage: 1,
+      exchange: normalizeExchange(position.exchange, fallbackExchange),
+      strategy: position.strategy ?? "session",
+    };
+  });
 }
 
 export async function fetchOrdersView(): Promise<Order[]> {
@@ -746,8 +866,8 @@ export async function fetchOrdersView(): Promise<Order[]> {
       filled: statusValue === "FILLED" ? order.quantity : 0,
       status: statusValue,
       exchange: normalizeExchange(order.exchange, fallbackExchange),
-      strategy: "session",
-      time: "—",
+      strategy: order.strategy ?? "session",
+      time: order.filled_at ?? "—",
     };
   });
 }
@@ -895,6 +1015,23 @@ export async function fetchConnections(): Promise<ConnectionHealth[]> {
 
 export async function fetchSystemInfo(): Promise<SystemInfo[]> {
   return request<SystemInfo[]>("/v1/settings/system");
+}
+
+export async function fetchRuntimeSettings(): Promise<RuntimeSettings> {
+  const payload = await request<BackendRuntimeSettings>("/v1/settings/runtime");
+  return {
+    tradingMode: payload.trading_mode,
+    sessionStatus: payload.session_status,
+    sessionsRunning: payload.sessions_running,
+    sessionsTotal: payload.sessions_total,
+    activeAccounts: payload.active_accounts,
+    liveAccounts: payload.live_accounts,
+    paperAccounts: payload.paper_accounts,
+    liveEnabled: payload.live_enabled,
+    websocketChannels: payload.websocket_channels,
+    websocketSubscribers: payload.websocket_subscribers,
+    updatedAt: payload.updatedAt,
+  };
 }
 
 export async function fetchNotificationPreferences(): Promise<NotificationPreference[]> {

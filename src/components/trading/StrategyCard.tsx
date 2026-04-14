@@ -1,14 +1,26 @@
 import { Strategy } from "@/lib/planc-api";
 import { StatusBadge } from "./StatusBadge";
 import { motion } from "framer-motion";
-import { Activity, TrendingUp, Target, BarChart3 } from "lucide-react";
+import { Activity, TrendingUp, Target, BarChart3, Play, Square } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 interface StrategyCardProps {
   strategy: Strategy;
   delay?: number;
+  isSubmitting?: boolean;
+  onStart?: (strategy: Strategy) => void;
+  onStop?: (strategy: Strategy) => void;
 }
 
-export function StrategyCard({ strategy, delay = 0 }: StrategyCardProps) {
+export function StrategyCard({
+  strategy,
+  delay = 0,
+  isSubmitting = false,
+  onStart,
+  onStop,
+}: StrategyCardProps) {
+  const showControls = Boolean(onStart) && Boolean(onStop);
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
@@ -68,6 +80,33 @@ export function StrategyCard({ strategy, delay = 0 }: StrategyCardProps) {
           <span className="text-muted-foreground">{strategy.lastSignalTime}</span>
         </div>
       </div>
+
+      {showControls ? (
+        <div className="mt-3 flex items-center justify-end gap-2">
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="h-8"
+            disabled={isSubmitting || strategy.status === "RUNNING"}
+            onClick={() => onStart?.(strategy)}
+          >
+            <Play className="h-3.5 w-3.5" />
+            Start
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="h-8 text-loss hover:text-loss"
+            disabled={isSubmitting || strategy.status !== "RUNNING"}
+            onClick={() => onStop?.(strategy)}
+          >
+            <Square className="h-3.5 w-3.5" />
+            Stop
+          </Button>
+        </div>
+      ) : null}
     </motion.div>
   );
 }

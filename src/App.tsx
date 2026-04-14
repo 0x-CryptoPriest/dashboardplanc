@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { AuthGuard } from "@/components/auth/AuthGuard";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -14,6 +15,7 @@ import DagsterJobs from "./pages/DagsterJobs";
 import DataManagement from "./pages/DataManagement";
 import Settings from "./pages/Settings";
 import SystemHealth from "./pages/SystemHealth";
+import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -25,18 +27,21 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<Index />} />
-          <Route path="/positions" element={<Positions />} />
-          <Route path="/orders" element={<Orders />} />
-          <Route path="/strategies" element={<Strategies />} />
-          <Route path="/backtest" element={<Backtest />} />
-          <Route path="/performance" element={<Performance />} />
-          <Route path="/risk" element={<Risk />} />
-          <Route path="/data" element={<DataManagement />} />
-          <Route path="/jobs" element={<DagsterJobs />} />
-          <Route path="/settings" element={<Settings />} />
-          <Route path="/system-health" element={<SystemHealth />} />
-          <Route path="*" element={<NotFound />} />
+          <Route path="/login" element={<Login />} />
+          <Route element={<AuthGuard />}>
+            <Route path="/" element={<Index />} />
+            <Route path="/positions" element={<Positions />} />
+            <Route path="/orders" element={<Orders />} />
+            <Route path="/strategies" element={<Strategies />} />
+            <Route path="/backtest" element={<Backtest />} />
+            <Route path="/performance" element={<Performance />} />
+            <Route path="/risk" element={<Risk />} />
+            <Route path="/data" element={<DataManagement />} />
+            <Route path="/jobs" element={<DagsterJobs />} />
+            <Route path="/settings" element={<Settings />} />
+            <Route path="/system-health" element={<SystemHealth />} />
+            <Route path="*" element={<NotFound />} />
+          </Route>
         </Routes>
       </BrowserRouter>
     </TooltipProvider>

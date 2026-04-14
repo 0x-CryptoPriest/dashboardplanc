@@ -1,5 +1,6 @@
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { PageTransition } from "@/components/PageTransition";
+import { SkeletonCards, SkeletonChart, SkeletonTable } from "@/components/SkeletonDashboard";
 import { MonthlyHeatmap } from "@/components/trading/MonthlyHeatmap";
 import {
   BacktestConfig,
@@ -91,16 +92,30 @@ function buildDefaultStrategyConfig(strategy: StrategyCatalog | undefined): Reco
     }
 
     if (rule.type === "integer") {
+      if (typeof rule.default === "number") {
+        payload[key] = Math.round(rule.default);
+        continue;
+      }
       const minimum = typeof rule.minimum === "number" ? Math.ceil(rule.minimum) : 2;
       payload[key] = Math.max(minimum, 2);
       continue;
     }
     if (rule.type === "number") {
+      if (typeof rule.default === "number") {
+        payload[key] = rule.default;
+        continue;
+      }
       const base = typeof rule.exclusiveMinimum === "number" ? rule.exclusiveMinimum : 0;
       payload[key] = Math.max(base + 0.01, 0.01);
     }
   }
   return payload;
+}
+
+function strategyStatusLabel(status: StrategyCatalog["status"]): string {
+  if (status === "RUNNING") return "RUNNING";
+  if (status === "STOPPED") return "STOPPED";
+  return "ERROR";
 }
 
 function BacktestCard({
@@ -160,6 +175,8 @@ function Content({ exchangeFilter }: { exchangeFilter: Exchange | "all" }) {
   const [result, setResult] = useState<BacktestResult | null>(null);
   const [strategies, setStrategies] = useState<StrategyCatalog[]>([]);
   const [sources, setSources] = useState<DataSource[]>([]);
+  const [isContextLoading, setIsContextLoading] = useState(true);
+  const [isResultLoading, setIsResultLoading] = useState(false);
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [form, setForm] = useState<BacktestFormState>({
@@ -172,47 +189,72 @@ function Content({ exchangeFilter }: { exchangeFilter: Exchange | "all" }) {
     initialCapital: "100000",
   });
 
+  const loadBacktestContext = async (currentExchangeFilter: Exchange | "all") => {
+    setIsContextLoading(true);
+    setError(null);
+    try {
+      const [runData, sourceData, strategyData] = await Promise.all([
+        fetchBacktests(),
+        fetchDataSources(),
+        fetchStrategyCatalog(),
+      ]);
+
+      setConfigs(runData);
+      setSources(sourceData);
+      setStrategies(strategyData);
+      setSelectedId(runData[0]?.id ?? "");
+
+      const desiredExchange = currentExchangeFilter === "all" ? "binance" : currentExchangeFilter;
+      const desiredSourceId = desiredExchange === "binance" ? "d1" : "d2";
+      const source = sourceData.find((item) => item.id === desiredSourceId);
+      const sourceSymbols = source?.instruments ?? [];
+      const sourceTimeframes = [...(source?.timeframes ?? [])].sort(
+        (a, b) => (timeframePriority[a] ?? 99) - (timeframePriority[b] ?? 99),
+      );
+
+      setForm((previous) => ({
+        ...previous,
+        exchange: desiredExchange,
+        strategyId: strategyData[0]?.id ?? "",
+        symbol: sourceSymbols[0] ?? "",
+        timeframe: sourceTimeframes[0] ?? "1h",
+        startDate: normalizeDate(source?.coverage.from) || defaultStartDate,
+        endDate: normalizeDate(source?.coverage.to) || defaultEndDate,
+      }));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "failed to load backtest context");
+    } finally {
+      setIsContextLoading(false);
+    }
+  };
+
+  const loadBacktestResult = async (backtestId: string) => {
+    if (!backtestId) {
+      setResult(null);
+      return;
+    }
+    setIsResultLoading(true);
+    try {
+      const data = await fetchBacktestResult(backtestId);
+      setResult(data);
+      setError(null);
+    } catch (err) {
+      setResult(null);
+      setError(err instanceof Error ? err.message : "failed to load backtest result");
+    } finally {
+      setIsResultLoading(false);
+    }
+  };
+
   useEffect(() => {
     let isMounted = true;
-    (async () => {
-      try {
-        const [runData, sourceData, strategyData] = await Promise.all([
-          fetchBacktests(),
-          fetchDataSources(),
-          fetchStrategyCatalog(),
-        ]);
-        if (!isMounted) {
-          return;
-        }
-
-        setConfigs(runData);
-        setSources(sourceData);
-        setStrategies(strategyData);
-        setSelectedId(runData[0]?.id ?? "");
-
-        const desiredExchange = exchangeFilter === "all" ? "binance" : exchangeFilter;
-        const desiredSourceId = desiredExchange === "binance" ? "d1" : "d2";
-        const source = sourceData.find((item) => item.id === desiredSourceId);
-        const sourceSymbols = source?.instruments ?? [];
-        const sourceTimeframes = [...(source?.timeframes ?? [])].sort(
-          (a, b) => (timeframePriority[a] ?? 99) - (timeframePriority[b] ?? 99),
-        );
-
-        setForm((previous) => ({
-          ...previous,
-          exchange: desiredExchange,
-          strategyId: strategyData[0]?.id ?? "",
-          symbol: sourceSymbols[0] ?? "",
-          timeframe: sourceTimeframes[0] ?? "1h",
-          startDate: normalizeDate(source?.coverage.from) || defaultStartDate,
-          endDate: normalizeDate(source?.coverage.to) || defaultEndDate,
-        }));
-      } catch (err) {
-        if (isMounted) {
-          setError(err instanceof Error ? err.message : "failed to load backtest context");
-        }
+    const load = async () => {
+      if (!isMounted) {
+        return;
       }
-    })();
+      await loadBacktestContext(exchangeFilter);
+    };
+    void load();
     return () => {
       isMounted = false;
     };
@@ -267,20 +309,13 @@ function Content({ exchangeFilter }: { exchangeFilter: Exchange | "all" }) {
       return;
     }
     let isMounted = true;
-    (async () => {
-      try {
-        const data = await fetchBacktestResult(selectedId);
-        if (isMounted) {
-          setResult(data);
-          setError(null);
-        }
-      } catch (err) {
-        if (isMounted) {
-          setResult(null);
-          setError(err instanceof Error ? err.message : "failed to load backtest result");
-        }
+    const load = async () => {
+      if (!isMounted) {
+        return;
       }
-    })();
+      await loadBacktestResult(selectedId);
+    };
+    void load();
     return () => {
       isMounted = false;
     };
@@ -312,6 +347,7 @@ function Content({ exchangeFilter }: { exchangeFilter: Exchange | "all" }) {
     }
 
     setRunning(true);
+    setIsResultLoading(true);
     setError(null);
     try {
       const selectedStrategy = strategies.find((item) => item.id === form.strategyId);
@@ -335,10 +371,12 @@ function Content({ exchangeFilter }: { exchangeFilter: Exchange | "all" }) {
       setConfigs(updatedConfigs);
       setSelectedId(created.id);
       setResult(createdResult);
+      setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "failed to run backtest");
     } finally {
       setRunning(false);
+      setIsResultLoading(false);
     }
   };
 
@@ -352,130 +390,143 @@ function Content({ exchangeFilter }: { exchangeFilter: Exchange | "all" }) {
             market data.
           </p>
         </div>
-        {error ? <div className="text-sm text-loss">{error}</div> : null}
+        {error ? (
+          <div className="rounded-lg border border-loss/30 bg-loss/10 p-3 flex items-center justify-between gap-3">
+            <p className="text-sm text-loss">{error}</p>
+            <Button variant="outline" size="sm" onClick={() => void loadBacktestContext(exchangeFilter)}>
+              Retry
+            </Button>
+          </div>
+        ) : null}
 
-        <div className="rounded-lg border border-border bg-card p-4 space-y-3">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-            <div className="space-y-1">
-              <Label className="text-xs text-muted-foreground">Strategy</Label>
-              <Select
-                value={form.strategyId}
-                onValueChange={(value) => setForm((previous) => ({ ...previous, strategyId: value }))}
-              >
-                <SelectTrigger className="h-9">
-                  <SelectValue placeholder="Select strategy" />
-                </SelectTrigger>
-                <SelectContent>
-                  {strategies.map((strategy) => (
-                    <SelectItem key={strategy.id} value={strategy.id}>
-                      {strategy.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+        {isContextLoading ? (
+          <SkeletonCards count={4} />
+        ) : (
+          <div className="rounded-lg border border-border bg-card p-4 space-y-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Strategy</Label>
+                <Select
+                  value={form.strategyId}
+                  onValueChange={(value) => setForm((previous) => ({ ...previous, strategyId: value }))}
+                >
+                  <SelectTrigger className="h-9">
+                    <SelectValue placeholder="Select strategy" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {strategies.map((strategy) => (
+                      <SelectItem key={strategy.id} value={strategy.id}>
+                        {strategy.name} · {strategyStatusLabel(strategy.status)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Exchange</Label>
+                <Select
+                  value={form.exchange}
+                  onValueChange={(value: Exchange) =>
+                    setForm((previous) => ({ ...previous, exchange: value }))
+                  }
+                >
+                  <SelectTrigger className="h-9">
+                    <SelectValue placeholder="Select exchange" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="binance">Binance</SelectItem>
+                    <SelectItem value="hyperliquid">Hyperliquid</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Symbol</Label>
+                <Select
+                  value={form.symbol}
+                  onValueChange={(value) => setForm((previous) => ({ ...previous, symbol: value }))}
+                >
+                  <SelectTrigger className="h-9">
+                    <SelectValue placeholder="Select symbol" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableSymbols.map((symbol) => (
+                      <SelectItem key={symbol} value={symbol}>
+                        {symbol}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Timeframe</Label>
+                <Select
+                  value={form.timeframe}
+                  onValueChange={(value) => setForm((previous) => ({ ...previous, timeframe: value }))}
+                >
+                  <SelectTrigger className="h-9">
+                    <SelectValue placeholder="Select timeframe" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableTimeframes.map((timeframe) => (
+                      <SelectItem key={timeframe} value={timeframe}>
+                        {timeframe}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
-            <div className="space-y-1">
-              <Label className="text-xs text-muted-foreground">Exchange</Label>
-              <Select
-                value={form.exchange}
-                onValueChange={(value: Exchange) =>
-                  setForm((previous) => ({ ...previous, exchange: value }))
-                }
-              >
-                <SelectTrigger className="h-9">
-                  <SelectValue placeholder="Select exchange" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="binance">Binance</SelectItem>
-                  <SelectItem value="hyperliquid">Hyperliquid</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-1">
-              <Label className="text-xs text-muted-foreground">Symbol</Label>
-              <Select
-                value={form.symbol}
-                onValueChange={(value) => setForm((previous) => ({ ...previous, symbol: value }))}
-              >
-                <SelectTrigger className="h-9">
-                  <SelectValue placeholder="Select symbol" />
-                </SelectTrigger>
-                <SelectContent>
-                  {availableSymbols.map((symbol) => (
-                    <SelectItem key={symbol} value={symbol}>
-                      {symbol}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-1">
-              <Label className="text-xs text-muted-foreground">Timeframe</Label>
-              <Select
-                value={form.timeframe}
-                onValueChange={(value) => setForm((previous) => ({ ...previous, timeframe: value }))}
-              >
-                <SelectTrigger className="h-9">
-                  <SelectValue placeholder="Select timeframe" />
-                </SelectTrigger>
-                <SelectContent>
-                  {availableTimeframes.map((timeframe) => (
-                    <SelectItem key={timeframe} value={timeframe}>
-                      {timeframe}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Start Date</Label>
+                <Input
+                  type="date"
+                  value={form.startDate}
+                  onChange={(event) =>
+                    setForm((previous) => ({ ...previous, startDate: event.target.value }))
+                  }
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">End Date</Label>
+                <Input
+                  type="date"
+                  value={form.endDate}
+                  onChange={(event) =>
+                    setForm((previous) => ({ ...previous, endDate: event.target.value }))
+                  }
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Initial Capital</Label>
+                <Input
+                  type="number"
+                  min={1}
+                  value={form.initialCapital}
+                  onChange={(event) =>
+                    setForm((previous) => ({ ...previous, initialCapital: event.target.value }))
+                  }
+                />
+              </div>
+              <div className="flex items-end">
+                <Button onClick={runBacktest} disabled={running} className="w-full">
+                  {running ? "Running..." : "Run Backtest"}
+                </Button>
+              </div>
             </div>
           </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-            <div className="space-y-1">
-              <Label className="text-xs text-muted-foreground">Start Date</Label>
-              <Input
-                type="date"
-                value={form.startDate}
-                onChange={(event) =>
-                  setForm((previous) => ({ ...previous, startDate: event.target.value }))
-                }
-              />
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs text-muted-foreground">End Date</Label>
-              <Input
-                type="date"
-                value={form.endDate}
-                onChange={(event) =>
-                  setForm((previous) => ({ ...previous, endDate: event.target.value }))
-                }
-              />
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs text-muted-foreground">Initial Capital</Label>
-              <Input
-                type="number"
-                min={1}
-                value={form.initialCapital}
-                onChange={(event) =>
-                  setForm((previous) => ({ ...previous, initialCapital: event.target.value }))
-                }
-              />
-            </div>
-            <div className="flex items-end">
-              <Button onClick={runBacktest} disabled={running} className="w-full">
-                {running ? "Running..." : "Run Backtest"}
-              </Button>
-            </div>
-          </div>
-        </div>
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
           <div className="space-y-2">
             <h2 className="text-sm font-semibold text-muted-foreground">Backtest Runs</h2>
-            {filteredConfigs.length === 0 ? (
+            {isContextLoading ? (
+              <SkeletonCards count={3} />
+            ) : filteredConfigs.length === 0 ? (
               <div className="rounded-lg border border-border bg-card p-4 text-xs text-muted-foreground">
                 No backtest runs yet for current filter.
               </div>
@@ -493,7 +544,13 @@ function Content({ exchangeFilter }: { exchangeFilter: Exchange | "all" }) {
           </div>
 
           <div className="lg:col-span-3 space-y-4">
-            {result ? (
+            {isResultLoading ? (
+              <>
+                <SkeletonCards count={6} />
+                <SkeletonChart height="h-[350px]" />
+                <SkeletonTable rows={8} />
+              </>
+            ) : result ? (
               <>
                 <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-2">
                   {[

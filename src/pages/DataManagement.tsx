@@ -5,6 +5,8 @@ import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Database, HardDrive, Wifi, AlertTriangle, RefreshCw, CheckCircle } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
+import { SkeletonCards } from "@/components/SkeletonDashboard";
+import { Button } from "@/components/ui/button";
 
 const typeIcons: Record<string, typeof Database> = {
   exchange: Wifi,
@@ -107,27 +109,36 @@ function DataSourceCard({ source, delay }: { source: DataSource; delay: number }
 
 function Content({ exchangeFilter: _exchangeFilter }: { exchangeFilter: Exchange | "all" }) {
   const [sources, setSources] = useState<DataSource[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const loadSources = async () => {
+    setIsLoading(true);
+    try {
+      const data = await fetchDataSources();
+      setSources(data);
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "failed to load data sources");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
     let isMounted = true;
     const load = async () => {
-      try {
-        const data = await fetchDataSources();
-        if (isMounted) {
-          setSources(data);
-          setError(null);
-        }
-      } catch (err) {
-        if (isMounted) {
-          setError(err instanceof Error ? err.message : "failed to load data sources");
-        }
+      if (!isMounted) {
+        return;
       }
+      await loadSources();
     };
 
     void load();
     const interval = window.setInterval(() => {
-      void load();
+      if (isMounted) {
+        void loadSources().catch(() => null);
+      }
     }, 30_000);
 
     return () => {
@@ -150,7 +161,14 @@ function Content({ exchangeFilter: _exchangeFilter }: { exchangeFilter: Exchange
             Market data is ingested continuously in the background. This page shows feed health, freshness, and gap repair status.
           </p>
         </div>
-        {error ? <div className="text-sm text-loss">{error}</div> : null}
+        {error ? (
+          <div className="rounded-lg border border-loss/30 bg-loss/10 p-3 flex items-center justify-between gap-3">
+            <p className="text-sm text-loss">{error}</p>
+            <Button variant="outline" size="sm" onClick={() => void loadSources()}>
+              Retry
+            </Button>
+          </div>
+        ) : null}
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {[
@@ -167,11 +185,15 @@ function Content({ exchangeFilter: _exchangeFilter }: { exchangeFilter: Exchange
           ))}
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {sources.map((source, index) => (
-            <DataSourceCard key={source.id} source={source} delay={index * 0.05} />
-          ))}
-        </div>
+        {isLoading ? (
+          <SkeletonCards count={4} />
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {sources.map((source, index) => (
+              <DataSourceCard key={source.id} source={source} delay={index * 0.05} />
+            ))}
+          </div>
+        )}
       </div>
     </PageTransition>
   );
